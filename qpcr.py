@@ -20,7 +20,7 @@ def standard_curve_plot(avg_CT):
     intercept = model.intercept_
     r2 = model.score(x,y)
     
-    plt.figure(figsize=(7,7)) #creating plot with pyplot
+    plt.figure(figsize=(4,4)) #creating plot with pyplot
     plt.plot(log_copies,CT_lin, marker = 'o',ls = '--')
     plt.title('Viral Titer Standard Curve')
     plt.xlabel('Log copies/ml') ; plt.ylabel('CT')
