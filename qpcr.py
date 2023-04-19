@@ -24,6 +24,7 @@ def standard_curve_plot(avg_CT):
     CT.reverse()
     log_copies = [4,5,6,7,8,9,10]
 
+    
     x = np.array(log_copies).reshape((-1,1))
     y = np.array(CT)
     model = LinearRegression().fit(x, y) #creates line of best fit for CT and log values
@@ -32,18 +33,26 @@ def standard_curve_plot(avg_CT):
     intercept = model.intercept_
     r2 = model.score(x,y)
     
+
     plt.figure(figsize=(4,4)) #creating plot with pyplot
-    plt.plot(log_copies,CT_lin, marker = 'o',ls = '--')
+    plt.plot(log_copies,CT_lin,ls = '--')
+    plt.scatter(log_copies, CT, marker = 'o')
     plt.title('Viral Titer Standard Curve')
     plt.xlabel('Log copies/ml') ; plt.ylabel('CT')
+    plt.annotate('y = {}x + {}'.format(round(slope,4),round(intercept,4)), xy=(7, 1.5*CT[4]),size = 8)
+    plt.annotate('r^2 = {}'.format(round(r2,4)), xy=(7, 1.5*CT[4]-1),size = 8)
     plt.savefig('std_c.png',dpi=150)
 
     wb = openpyxl.Workbook()
     sh = wb.create_sheet('graph')
     img = openpyxl.drawing.image.Image('std_c.png')
-    sh.add_image(img, 'A3')
+    sh.add_image(img, 'A8')
     plot_col = ['slope = ', str(slope), 'intercept = ', str(intercept), 'r^2 = ', str(r2)]
     sh.append(plot_col)
+    avgct = ['Avg CT = ']
+    for i in CT:
+        avgct.append(i)
+    sh.append(avgct)
     del wb['Sheet']
     wb.save(sys.argv[2])
     wb.close()
@@ -96,12 +105,13 @@ def create_frame(table,data):
     for i in CT_t:
         avg = sum(i)/3
         for j in i:
-            if j > (avg + 0.5) or j < (avg - 0.5): 
+            if j >= (avg + 0.5) or j <= (avg - 0.5): 
                 #then the value is an outlier and we remove it and find new average
                 i.remove(j)
         avg_CT.append(sum(i)/len(i))
         avg_CT.append('')
         avg_CT.append('')
+        
     frame['Average CT'] = avg_CT #adding average CT column
     
     slope, intercept, r2 = standard_curve_plot(avg_CT) #create viral titer standard curve plot and get slope/intercept values
