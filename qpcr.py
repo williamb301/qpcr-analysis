@@ -6,6 +6,18 @@ import openpyxl
 import sys
 
 
+"""
+standard_curve_plot : function
+
+parameters : avg_CT list of avg CT per triplet 
+
+creates a pyplot of log_copies vs avg CT values that are linearized
+through a scikit LinearRegression model
+
+creates an excel sheet and appends the pyplot along with slope/intercept values
+
+returns slope, intercept, r2 of CT vs log copies plot
+"""
 def standard_curve_plot(avg_CT):
     CT = [i for i in avg_CT if avg_CT.index(i) % 4 == 0] #extrapolating std's averages
     del CT[7] #remove 8th value, since std goes from 1-7
@@ -38,7 +50,16 @@ def standard_curve_plot(avg_CT):
     return slope, intercept, r2 #returns slope and intercept values
     
 
+"""
+create_frame : function
 
+parameters : table dataframe (excel sheet 1) raw data dataframe (excel sheet 2)
+
+while creating columns for frame, calls standard_curve_plot function to 
+retrieve slope and intercept information necessary for further calculations
+
+returns frame : a dataframe with all calculations and results
+"""
 def create_frame(table,data):
     well96 = [] #list of all tests done in loading table 
     well_pos = [] #creating list for 'Well Position' column
@@ -121,6 +142,7 @@ def create_frame(table,data):
 
     return frame
 
+#main handles command line inputs and adds frame dataframe to excel with pyplot
 if __name__ == "__main__":
     if (len(sys.argv) != 3):
         print("No file input, argument format: './qpcr <input_file_name.(xlsx, xls, xlsm)> <output_file_name.(xlsx, xls, xlsm)>'")
