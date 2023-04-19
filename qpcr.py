@@ -20,7 +20,7 @@ returns slope, intercept, r2 of CT vs log copies plot
 """
 def standard_curve_plot(avg_CT):
     CT = [i for i in avg_CT if avg_CT.index(i) % 4 == 0] #extrapolating std's averages
-    del CT[7] #remove 8th value, since std goes from 1-7
+    del CT[-1] #remove 8th value, since std goes from 1-7
     CT.reverse()
     log_copies = [4,5,6,7,8,9,10]
 
@@ -87,7 +87,13 @@ def create_frame(table,data):
     frame = pd.DataFrame(well_pos,columns=['Well Position']) #creating dataframe with first column as well position
     
     CT = data.iloc[43:,8].tolist() #splicing CT data from raw data excel
+    for j in range(3): #delete the first triplet from CT list
+            del CT[del_list[0]]
+    del del_list[0]
+    count = 0
     for i in del_list:
+       count += 3 #keep track of how many have been deleting and update index accordingly
+       i -= count
        for j in range(3): #delete the triplet from CT list
             del CT[i]
     frame['CT'] = CT #adding CT column to dataframe
@@ -135,8 +141,11 @@ def create_frame(table,data):
         triplet.append(qpcr_titer[3*i+2])
         qpcr_t.append(triplet)
      
+    
     avg_qpcr = [] #creating list of average qpcr for each triplet 
     sd_qpcr = [] #creating list of standard deviations for each triplet
+    avg_qpcr2 = [] #for frame2
+    sd_qpcr2 = [] #for frame2
     for i in qpcr_t:
         avg = sum(i)/3
         sd_qpcr.append(np.std(i))
@@ -149,10 +158,30 @@ def create_frame(table,data):
         avg_qpcr.append('')
         sd_qpcr.append('')
         sd_qpcr.append('')
+
     frame['Average qpcr titer'] = avg_qpcr #adding average CT column
     frame['qpcr SD'] = sd_qpcr #adding standard deviation column
 
-    return frame, del_vals
+    #creating 2nd dataframe for 2nd results sheet
+    useful_tests = []
+    useful_tests.append(table.iloc[7,1])
+    for j in range(2,5):
+        for i in range(0,8):
+            index = table.iloc[i,j]
+            if pd.notna(index):
+                useful_tests.append(index)
+    frame2 = pd.DataFrame(useful_tests, columns = ['test names'])
+    avg_qpcr2.append(avg_qpcr[84])
+    sd_qpcr2.append(sd_qpcr[84])
+    for i in range(len(avg_qpcr)):
+        if i%12 != 0:
+            if avg_qpcr[i] != '':
+                avg_qpcr2.append(avg_qpcr[i])
+                sd_qpcr2.append(sd_qpcr[i])
+
+    frame2['Average qpcr titer'] = avg_qpcr2
+    frame2['qpcr SD'] = sd_qpcr2
+    return frame, del_vals, frame2
 
 #main handles command line inputs and adds frame dataframe to excel with pyplot
 if __name__ == "__main__":
@@ -161,11 +190,14 @@ if __name__ == "__main__":
     filename = sys.argv[1]
     data = pd.read_excel(filename, sheet_name = 0)
     loading_table = pd.read_excel(filename, sheet_name = 1)
-    frame, del_vals = create_frame(loading_table,data)
+    frame, del_vals, frame2 = create_frame(loading_table,data)
     with pd.ExcelWriter(sys.argv[2], mode='a', engine='openpyxl') as writer:  
         frame.to_excel(writer, sheet_name='results') #add results to existing excel sheet
+    
+    with pd.ExcelWriter(sys.argv[2], mode='a', engine='openpyxl') as writer:  
+        frame2.to_excel(writer, sheet_name='results page 2') #add results to existing excel sheet
 
-    wb = openpyxl.load_workbook(sys.argv[2])
+    wb = openpyxl.load_workbook(sys.argv[2]) #highlighting outlier cells
     ws = wb['results']
     yellow = "00FFFF00"
     for i in del_vals:
