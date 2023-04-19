@@ -102,16 +102,18 @@ def create_frame(table,data):
         CT_t.append(triplet)
 
     avg_CT = [] #creating list of average CT for each triplet 
+    del_vals = [] #list of removed values to then highlight
     for i in CT_t:
         avg = sum(i)/3
         for j in i:
             if j >= (avg + 0.5) or j <= (avg - 0.5): 
                 #then the value is an outlier and we remove it and find new average
+                del_vals.append(3*(CT_t.index(i))+i.index(j)+1) #obtaining index of removed value
                 i.remove(j)
         avg_CT.append(sum(i)/len(i))
         avg_CT.append('')
         avg_CT.append('')
-        
+
     frame['Average CT'] = avg_CT #adding average CT column
     
     slope, intercept, r2 = standard_curve_plot(avg_CT) #create viral titer standard curve plot and get slope/intercept values
@@ -150,7 +152,7 @@ def create_frame(table,data):
     frame['Average qpcr titer'] = avg_qpcr #adding average CT column
     frame['qpcr SD'] = sd_qpcr #adding standard deviation column
 
-    return frame
+    return frame, del_vals
 
 #main handles command line inputs and adds frame dataframe to excel with pyplot
 if __name__ == "__main__":
@@ -159,6 +161,16 @@ if __name__ == "__main__":
     filename = sys.argv[1]
     data = pd.read_excel(filename, sheet_name = 0)
     loading_table = pd.read_excel(filename, sheet_name = 1)
-    frame = create_frame(loading_table,data)
-    with pd.ExcelWriter(sys.argv[2], mode='a') as writer:  
-        frame.to_excel(writer, sheet_name='results')
+    frame, del_vals = create_frame(loading_table,data)
+    with pd.ExcelWriter(sys.argv[2], mode='a', engine='openpyxl') as writer:  
+        frame.to_excel(writer, sheet_name='results') #add results to existing excel sheet
+
+    wb = openpyxl.load_workbook(sys.argv[2])
+    ws = wb['results']
+    yellow = "00FFFF00"
+    for i in del_vals:
+        highlight = ws.cell(row = i+1, column = 3) 
+        highlight.fill = openpyxl.styles.PatternFill(start_color=yellow, end_color=yellow,fill_type = "solid")
+    wb.save(sys.argv[2])
+
+    
