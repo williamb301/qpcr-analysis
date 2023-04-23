@@ -150,7 +150,11 @@ def create_frame(table,data):
         sd_qpcr.append('')
         sd_qpcr.append('')
 
-    
+    #creating second pandas dataframe for results page 2
+    useful_tests = [x for x in well_pos]
+    avg_qpcr2 = [x for x in avg_qpcr]
+    sd_qpcr2 = [x for x in sd_qpcr]
+
     #remove values by double for loop that goes through deleted wells list and 96->0
     #index based on letter and number (find formula), use for all columns
     del_list.reverse() #to prevent indexes from shifting when deleting early ones in list
@@ -166,6 +170,22 @@ def create_frame(table,data):
                 del qpcr_titer[dindex]
                 del avg_qpcr[dindex]
                 del sd_qpcr[dindex]
+                del useful_tests[dindex]
+                del avg_qpcr2[dindex]
+                del sd_qpcr2[dindex]
+
+    #removing stds from frame2 columns
+    #note: modifying a list while iterating over it can cause weird behavior
+    for i in range(len(useful_tests),0,-1):
+        well = useful_tests[i-1]
+        n = well[1] #leaving out any std test which would be in columns 1-3
+        if well[0] == 'H':
+            continue #to keep DC
+        if n == '1' or (n == '2' or n == '3'):
+            dindex = useful_tests.index(well)
+            useful_tests.remove(well)
+            del avg_qpcr2[dindex]
+            del sd_qpcr2[dindex]
 
     frame = pd.DataFrame(well_pos,columns=['Well Position']) #creating dataframe with first column as well position
     frame['CT'] = CT #adding CT column to dataframe
@@ -177,20 +197,6 @@ def create_frame(table,data):
     frame['qpcr SD'] = sd_qpcr #adding standard deviation column
 
     #creating 2nd dataframe for 2nd results sheet
-    useful_tests = []
-    for well in well_pos:
-        n = well[1]
-        if n != '1' and n != '2' and n != '3':
-            useful_tests.append(well)
-    avg_qpcr2 = []
-    sd_qpcr2 = []
-    for well in useful_tests:
-        windex = (ord(well[0])-65)*12 + int(well[1]) -1
-        for val in well_pos:
-            if windex == well_pos.index(val):
-                avg_qpcr2.append(avg_qpcr[windex])
-                sd_qpcr2.append(sd_qpcr[windex])
-
     frame2 = pd.DataFrame(useful_tests, columns = ['test names'])
     frame2['Average qpcr titer'] = avg_qpcr2
     frame2['qpcr SD'] = sd_qpcr2
@@ -206,10 +212,12 @@ if __name__ == "__main__":
     loading_table = pd.read_excel(filename, sheet_name = 1)
     frame, del_vals, frame2 = create_frame(loading_table,data)
     with pd.ExcelWriter(sys.argv[2], mode='a', engine='openpyxl') as writer:  
-        frame.to_excel(writer, sheet_name='results') #add results to existing excel sheet
+        frame.to_excel(writer, sheet_name='results', index = False) #add results to existing excel sheet
     
     with pd.ExcelWriter(sys.argv[2], mode='a', engine='openpyxl') as writer:  
-        frame2.to_excel(writer, sheet_name='results page 2') #add results to existing excel sheet
+        frame2.to_excel(writer, sheet_name='results page 2', index = False) #add results to existing excel sheet
+    with pd.ExcelWriter(sys.argv[2], engine='openpyxl', mode='a', if_sheet_exists="overlay") as writer:
+        loading_table.to_excel(writer, sheet_name = 'results page 2', startcol = 5, index = False)
 
     wb = openpyxl.load_workbook(sys.argv[2]) #highlighting outlier cells
     ws = wb['results']
