@@ -77,26 +77,22 @@ def create_frame(table,data):
         row = [] 
         for j in range(0,4): # j from 1-4 : '1-3' - '10-12'
             index = table.iloc[i,j+1] #name of test at [Letter(A-H),triplet]
-            if pd.notna(index): #doesn't append blanks
-                row.append(index)
+            row.append(index)
+            for q in range(1,4):
+                well_pos.append('{}{}'.format(chr(65+i),q+3*j)) #adding 8 4 triplets of well positions
+            if pd.isna(index): 
                 for q in range(1,4):
-                    well_pos.append('{}{}'.format(chr(65+i),q+3*j)) #adding 8 4 triplets of well positions
-            elif pd.isna(index): 
-                del_list.append((i+1)*(3*(j+1))+-3) #add blank's index to del_list
+                    del_list.append([chr(65+i),q+3*j]) #add blank's well letters/nums to del list
         well96.append(row)
-    frame = pd.DataFrame(well_pos,columns=['Well Position']) #creating dataframe with first column as well position
     
-    CT = data.iloc[43:,8].tolist() #splicing CT data from raw data excel
-    for j in range(3): #delete the first triplet from CT list
-            del CT[del_list[0]]
-    del del_list[0]
-    count = 0
-    for i in del_list:
-       count += 3 #keep track of how many have been deleting and update index accordingly
-       i -= count
-       for j in range(3): #delete the triplet from CT list
-            del CT[i]
-    frame['CT'] = CT #adding CT column to dataframe
+    CT_vals = data.iloc[43:,8].tolist() #splicing CT data from raw data excel
+
+    CT =[]
+    for i in CT_vals:
+        if type(i) == float:
+            CT.append(i)
+        else:
+            CT.append(0) #keep CT at size 96 but any 'undetermined' vals are set to 0
 
     #change CT from list to list of lists of triplets to make average and removal easier
     CT_t = []
@@ -119,19 +115,14 @@ def create_frame(table,data):
         avg_CT.append(sum(i)/len(i))
         avg_CT.append('')
         avg_CT.append('')
-
-    frame['Average CT'] = avg_CT #adding average CT column
     
     slope, intercept, r2 = standard_curve_plot(avg_CT) #create viral titer standard curve plot and get slope/intercept values
     
     log_copies = [(x-intercept)/slope for x in CT] #creates list of log copies by applying formula on each CT value
-    frame['log copies/ ml'] = log_copies
     
     copies_ml = [np.power(10,x) for x in log_copies] #creates list of copies/ml by applying formula on each log copy
-    frame['copies/ml'] = copies_ml
 
     qpcr_titer = [x*4520*2 for x in copies_ml]
-    frame['qpcr titer'] = qpcr_titer
 
     qpcr_t = []  #creating list of triplets for qpcr_titer
     for i in range(int(len(qpcr_titer)/3)):
@@ -159,28 +150,51 @@ def create_frame(table,data):
         sd_qpcr.append('')
         sd_qpcr.append('')
 
+    
+    #remove values by double for loop that goes through deleted wells list and 96->0
+    #index based on letter and number (find formula), use for all columns
+    del_list.reverse() #to prevent indexes from shifting when deleting early ones in list
+    for del_wel in del_list:
+        dindex = (ord(del_wel[0])-65)*12 + del_wel[1] -1
+        for well in well_pos:
+            if dindex == well_pos.index(well):
+                del well_pos[dindex]
+                del CT[dindex]
+                del avg_CT[dindex]
+                del log_copies[dindex]
+                del copies_ml[dindex]
+                del qpcr_titer[dindex]
+                del avg_qpcr[dindex]
+                del sd_qpcr[dindex]
+
+    frame = pd.DataFrame(well_pos,columns=['Well Position']) #creating dataframe with first column as well position
+    frame['CT'] = CT #adding CT column to dataframe
+    frame['Average CT'] = avg_CT #adding average CT column
+    frame['log copies/ml'] = log_copies
+    frame['copies/ml'] = copies_ml
+    frame['qpcr titer'] = qpcr_titer
     frame['Average qpcr titer'] = avg_qpcr #adding average CT column
     frame['qpcr SD'] = sd_qpcr #adding standard deviation column
 
     #creating 2nd dataframe for 2nd results sheet
     useful_tests = []
-    useful_tests.append(table.iloc[7,1])
-    for j in range(2,5):
-        for i in range(0,8):
-            index = table.iloc[i,j]
-            if pd.notna(index):
-                useful_tests.append(index)
-    frame2 = pd.DataFrame(useful_tests, columns = ['test names'])
-    avg_qpcr2.append(avg_qpcr[84])
-    sd_qpcr2.append(sd_qpcr[84])
-    for i in range(len(avg_qpcr)):
-        if i%12 != 0:
-            if avg_qpcr[i] != '':
-                avg_qpcr2.append(avg_qpcr[i])
-                sd_qpcr2.append(sd_qpcr[i])
+    for well in well_pos:
+        n = well[1]
+        if n != '1' and n != '2' and n != '3':
+            useful_tests.append(well)
+    avg_qpcr2 = []
+    sd_qpcr2 = []
+    for well in useful_tests:
+        windex = (ord(well[0])-65)*12 + int(well[1]) -1
+        for val in well_pos:
+            if windex == well_pos.index(val):
+                avg_qpcr2.append(avg_qpcr[windex])
+                sd_qpcr2.append(sd_qpcr[windex])
 
+    frame2 = pd.DataFrame(useful_tests, columns = ['test names'])
     frame2['Average qpcr titer'] = avg_qpcr2
     frame2['qpcr SD'] = sd_qpcr2
+
     return frame, del_vals, frame2
 
 #main handles command line inputs and adds frame dataframe to excel with pyplot
