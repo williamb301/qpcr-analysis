@@ -104,13 +104,13 @@ def create_frame(table,data):
         CT_t.append(triplet)
 
     avg_CT = [] #creating list of average CT for each triplet 
-    del_vals = [] #list of removed values to then highlight
+    r_vals = [] #list of removed values to then highlight
     for i in CT_t:
         avg = sum(i)/3
         for j in i:
             if j >= (avg + 0.5) or j <= (avg - 0.5): 
                 #then the value is an outlier and we remove it and find new average
-                del_vals.append(3*(CT_t.index(i))+i.index(j)+1) #obtaining index of removed value
+                r_vals.append(j) #obtaining index of removed value
                 i.remove(j)
         avg_CT.append(sum(i)/len(i))
         avg_CT.append('')
@@ -174,6 +174,11 @@ def create_frame(table,data):
                 del avg_qpcr2[dindex]
                 del sd_qpcr2[dindex]
 
+    del_vals = []
+    for r in r_vals:
+        if r in CT:
+            del_vals.append(CT.index(r))
+
     #removing stds from frame2 columns
     #note: modifying a list while iterating over it can cause weird behavior
     for i in range(len(useful_tests),0,-1):
@@ -181,6 +186,8 @@ def create_frame(table,data):
         n = well[1] #leaving out any std test which would be in columns 1-3
         if well[0] == 'H':
             continue #to keep DC
+        if len(well) == 3: 
+            continue #for 10,11,12
         if n == '1' or (n == '2' or n == '3'):
             dindex = useful_tests.index(well)
             useful_tests.remove(well)
@@ -223,7 +230,7 @@ if __name__ == "__main__":
     ws = wb['results']
     yellow = "00FFFF00"
     for i in del_vals:
-        highlight = ws.cell(row = i+1, column = 3) 
+        highlight = ws.cell(row = i+2, column = 2) 
         highlight.fill = openpyxl.styles.PatternFill(start_color=yellow, end_color=yellow,fill_type = "solid")
     wb.save(sys.argv[2])
 
