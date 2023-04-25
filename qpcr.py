@@ -194,6 +194,32 @@ def create_frame(table,data):
             del avg_qpcr2[dindex]
             del sd_qpcr2[dindex]
 
+    #converting to test_names from well positions for cleaner results page 2
+    c1_3 = table['1-3'].to_list()
+    c4_6 = table['4-6'].to_list()
+    c7_9 = table['7-9'].to_list()
+    c10_12 = table['10-12'].to_list()
+    test_names = c1_3 + c4_6 + c7_9 + c10_12
+    names = []
+    for i in range(len(useful_tests)):
+        well = useful_tests[i]
+        dindex = ord(well[0])-65 
+        col = int(well[1])
+        if len(well) == 3:
+            dindex += 24
+        else: 
+            if col >= 4 and col <= 6:
+                dindex += 8
+            elif col >= 7 and col <= 9:
+                dindex += 16
+        names.append(test_names[dindex])
+    for i in range(len(names),0,-1):
+        if i % 3 != 0:
+            del names[i]
+            del avg_qpcr2[i]
+            del sd_qpcr2[i]
+
+
     frame = pd.DataFrame(well_pos,columns=['Well Position']) #creating dataframe with first column as well position
     frame['CT'] = CT #adding CT column to dataframe
     frame['Average CT'] = avg_CT #adding average CT column
@@ -204,7 +230,7 @@ def create_frame(table,data):
     frame['qpcr SD'] = sd_qpcr #adding standard deviation column
 
     #creating 2nd dataframe for 2nd results sheet
-    frame2 = pd.DataFrame(useful_tests, columns = ['test names'])
+    frame2 = pd.DataFrame(names, columns = ['test names'])
     frame2['Average qpcr titer'] = avg_qpcr2
     frame2['qpcr SD'] = sd_qpcr2
 
@@ -223,8 +249,6 @@ if __name__ == "__main__":
     
     with pd.ExcelWriter(sys.argv[2], mode='a', engine='openpyxl') as writer:  
         frame2.to_excel(writer, sheet_name='results page 2', index = False) #add results to existing excel sheet
-    with pd.ExcelWriter(sys.argv[2], engine='openpyxl', mode='a', if_sheet_exists="overlay") as writer:
-        loading_table.to_excel(writer, sheet_name = 'results page 2', startcol = 5, index = False)
 
     wb = openpyxl.load_workbook(sys.argv[2]) #highlighting outlier cells
     ws = wb['results']
